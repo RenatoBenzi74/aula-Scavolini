@@ -95,10 +95,15 @@ html,body{height:100%; overflow:hidden}
   $("riprendi").addEventListener("click", function(){ var p = JSON.parse(ls("nuv_aula")); start(p.codice, p.chiave); });
   $("sf").addEventListener("submit", function(e){
     e.preventDefault(); $("serr").textContent = "";
+    var b = $("sf").querySelector("button[type=submit]");
+    if (b.disabled) return;
+    b.disabled = true; b.textContent = "Creo la nuvola…";
+    var fine = function(){ b.disabled = false; b.textContent = "Crea la nuvola"; };
     api({azione:"crea", domanda:$("sq").value, max_parole:+$("sm").value}).then(function(r){
+      fine();
       if (r.errore) { $("serr").textContent = "Non riesco a creare la nuvola (" + r.errore + ")."; return; }
       ls("nuv_aula", JSON.stringify(r)); codice = r.codice; history.replaceState(null, "", "#" + r.codice); start(r.codice, r.chiave);
-    }).catch(function(){ $("serr").textContent = "Connessione non riuscita."; });
+    }).catch(function(){ fine(); $("serr").textContent = "Connessione non riuscita."; });
   });
 
   function joinUrl(){ return new URL("telefono.html?c=" + codice, location.href).href; }
