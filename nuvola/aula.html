@@ -97,7 +97,7 @@ html,body{height:100%; overflow:hidden}
     e.preventDefault(); $("serr").textContent = "";
     api({azione:"crea", domanda:$("sq").value, max_parole:+$("sm").value}).then(function(r){
       if (r.errore) { $("serr").textContent = "Non riesco a creare la nuvola (" + r.errore + ")."; return; }
-      ls("nuv_aula", JSON.stringify(r)); location.hash = r.codice; start(r.codice, r.chiave);
+      ls("nuv_aula", JSON.stringify(r)); codice = r.codice; history.replaceState(null, "", "#" + r.codice); start(r.codice, r.chiave);
     }).catch(function(){ $("serr").textContent = "Connessione non riuscita."; });
   });
 
@@ -105,32 +105,55 @@ html,body{height:100%; overflow:hidden}
   function start(c, k){
     codice = c; chiave = k || null; last = ""; known = {};
     $("setup").hidden = true; $("app").hidden = false; $("ctl").hidden = !chiave;
-    if (location.hash.slice(1) !== c) location.hash = c;
+    if (location.hash.slice(1) !== c) history.replaceState(null, "", "#" + c);
     var url = joinUrl();
     try { var qr = qrcode(0, "M"); qr.addData(url); qr.make(); $("qr").innerHTML = qr.createSvgTag({cellSize:8, margin:0, scalable:true}); } catch (e) { $("qr").textContent = ""; }
     var corto = url.replace(/^https?:\/\//, "").replace(/\?c=.*/, "");
     $("join").innerHTML = "Inquadra il QR oppure apri<br>" + corto + "<br>codice <b>" + c + "</b>";
-    poll(); clearInterval(timer); timer = setInterval(poll, 2500);
+    gen++; clearTimeout(timer); poll(gen);
   }
-  function poll(){
-    api(chiave ? {azione:"leggi", codice:codice, chiave:chiave} : {azione:"leggi", codice:codice}).then(function(r){
-      if (r.errore) { if (r.errore === "nuvola non trovata") { clearInterval(timer); ls("nuv_aula", null); setup(); } return; }
+  var gen = 0, failSince = 0;
+  function tick(g, ms){ clearTimeout(timer); if (g === gen) timer = setTimeout(function(){ poll(g); }, ms); }
+  function poll(g){
+    if (g === undefined) g = gen;
+    var c = codice, ctrl = window.AbortController ? new AbortController() : null;
+    var to = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 7000);
+    fetch(U, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(chiave ? {azione:"leggi", codice:c, chiave:chiave} : {azione:"leggi", codice:c}), signal: ctrl ? ctrl.signal : undefined})
+    .then(function(r){ return r.json(); }).then(function(r){
+      clearTimeout(to);
+      if (g !== gen || c !== codice) return;
+      if (r.errore) {
+        if (r.errore === "nuvola non trovata") { ls("nuv_aula", null); setup(); return; }
+        throw new Error(r.errore);
+      }
+      failSince = 0;
       $("q").textContent = r.domanda; $("np").textContent = r.persone;
       aperta = r.aperta;
-      $("state").textContent = aperta ? "Raccolta aperta" : "Raccolta chiusa"; $("state").className = "state" + (aperta ? "" : " chiusa");
+      var d = new Date();
+      $("state").textContent = (aperta ? "Raccolta aperta" : "Raccolta chiusa") + " · aggiornata alle " + d.toLocaleTimeString("it-IT");
+      $("state").className = "state" + (aperta ? "" : " chiusa");
       $("bstato").textContent = aperta ? "Chiudi la raccolta" : "Riapri la raccolta";
       nascoste = r.nascoste || [];
       $("bnasc").hidden = !nascoste.length; $("bnasc").textContent = "Ripristina nascoste (" + nascoste.length + ")";
       var sig = JSON.stringify(r.parole);
-      if (sig !== last) { last = sig; draw(r.parole); }
-    }).catch(function(){});
+      if (sig !== last && draw(r.parole)) last = sig;
+      tick(g, 2000);
+    }).catch(function(){
+      clearTimeout(to);
+      if (g !== gen) return;
+      if (!failSince) failSince = Date.now();
+      if (Date.now() - failSince > 6000) { $("state").textContent = "Connessione lenta: riprovo…"; $("state").className = "state chiusa"; }
+      tick(g, 1500);
+    });
   }
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden && codice && !$("app").hidden) { gen++; poll(gen); } });
+  window.addEventListener("hashchange", function(){ if (location.hash.slice(1).toUpperCase() !== codice) location.reload(); });
 
   /* disposizione a spirale */
   function draw(parole){
     var box = $("cloud"); $("empty").hidden = parole.length > 0;
-    var W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
-    var old = {}; [].slice.call(box.children).forEach(function(el){ old[el.dataset.p] = el; });
+    var W = box.clientWidth, H = box.clientHeight; if (!W || !H) return false;
+    var old = {}; [].slice.call(box.children).forEach(function(el){ if (el.dataset.p) old[el.dataset.p] = el; });
     var max = parole.length ? parole[0].n : 1;
     var base = Math.min(H / 3.6, W / 6), TM = 6000, AR = Math.max(1, W / H) * 1.05, K = (H / 2) / Math.sqrt(TM) * 1.25;
     for (var tent = 0; tent < 7; tent++) {
@@ -159,9 +182,10 @@ html,body{height:100%; overflow:hidden}
     }
     var keep = {};
     placed.forEach(function(it){ var el = it[0], p = it[1]; el.style.left = p.x + "px"; el.style.top = p.y + "px"; el.style.visibility = "visible"; if (it[2]) { el.classList.add("new"); } keep[el.dataset.p] = 1; known[el.dataset.p] = 1; });
-    [].slice.call(box.children).forEach(function(el){ if (!keep[el.dataset.p]) el.remove(); });
+    [].slice.call(box.children).forEach(function(el){ if (!keep[el.dataset.p] && !el.classList.contains('pop')) el.remove(); });
+    return true;
   }
-  window.addEventListener("resize", function(){ last = ""; poll(); });
+  window.addEventListener("resize", function(){ last = ""; if (codice) { gen++; poll(gen); } });
 
   /* comandi del formatore */
   var popEl = null;
@@ -175,18 +199,18 @@ html,body{height:100%; overflow:hidden}
     popEl.style.left = Math.min(el.offsetLeft, $("cloud").clientWidth - 220) + "px"; popEl.style.top = (el.offsetTop + el.offsetHeight + 6) + "px";
     $("cloud").appendChild(popEl);
     var bs = popEl.querySelectorAll("button");
-    bs[0].addEventListener("click", function(){ api({azione:"nascondi", codice:codice, chiave:chiave, norma:el.dataset.p, nascosta:true}).then(poll); closePop(); });
+    bs[0].addEventListener("click", function(){ api({azione:"nascondi", codice:codice, chiave:chiave, norma:el.dataset.p, nascosta:true}).then(function(){ gen++; poll(gen); }); closePop(); });
     bs[1].addEventListener("click", closePop);
   });
   $("bnasc").addEventListener("click", function(){
-    Promise.all(nascoste.map(function(n){ return api({azione:"nascondi", codice:codice, chiave:chiave, norma:n, nascosta:false}); })).then(poll);
+    Promise.all(nascoste.map(function(n){ return api({azione:"nascondi", codice:codice, chiave:chiave, norma:n, nascosta:false}); })).then(function(){ gen++; poll(gen); });
   });
-  $("bstato").addEventListener("click", function(){ api({azione:"stato", codice:codice, chiave:chiave, aperta:!aperta}).then(poll); });
+  $("bstato").addEventListener("click", function(){ api({azione:"stato", codice:codice, chiave:chiave, aperta:!aperta}).then(function(){ gen++; poll(gen); }); });
   $("bqr").addEventListener("click", function(){
     var hid = $("qr").hidden = !$("qr").hidden; $("join").hidden = hid;
-    $("app").classList.toggle("noqr", hid); $("bqr").textContent = hid ? "Mostra QR" : "Nascondi QR"; last = ""; setTimeout(poll, 50);
+    $("app").classList.toggle("noqr", hid); $("bqr").textContent = hid ? "Mostra QR" : "Nascondi QR"; last = ""; setTimeout(function(){ gen++; poll(gen); }, 50);
   });
-  $("bnuova").addEventListener("click", function(){ clearInterval(timer); history.replaceState(null, "", location.pathname); setup(); });
+  $("bnuova").addEventListener("click", function(){ gen++; clearTimeout(timer); history.replaceState(null, "", location.pathname); setup(); });
 
   var h = location.hash.slice(1).toUpperCase(), saved = null;
   try { saved = JSON.parse(ls("nuv_aula") || "null"); } catch (e) {}

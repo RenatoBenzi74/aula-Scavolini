@@ -36,7 +36,7 @@ input:focus{outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(197
     <button class="btn send" id="go" type="submit">Invia</button>
     <p class="err" id="err" role="alert"></p>
   </form>
-  <div class="ok" id="ok" hidden><b>Grazie!</b><span>Le tue parole sono sulla nuvola. Guarda lo schermo.</span><ul id="mie"></ul></div>
+  <div class="ok" id="ok" hidden><b>Grazie!</b><span id="okt">Le tue parole sono sulla nuvola. Guarda lo schermo.</span><ul id="mie"></ul></div>
   <p class="err" id="stop" hidden></p>
 </div>
 <script>
@@ -59,7 +59,7 @@ input:focus{outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(197
   api({azione:"info", codice:c}).then(function(r){
     if (r.errore) { stop("Questa nuvola non esiste più."); return; }
     $("q").textContent = r.domanda;
-    if (gia) { fatto(JSON.parse(gia)); return; }
+    if (gia) { fatto(JSON.parse(gia)); $("okt").textContent = "Hai già inviato le tue parole da questo telefono: ogni persona ne manda una volta sola. Eccole:"; return; }
     if (!r.aperta) { $("stop").hidden = false; $("stop").textContent = "La raccolta è chiusa."; return; }
     var box = $("campi");
     for (var i = 0; i < r.max_parole; i++) {
