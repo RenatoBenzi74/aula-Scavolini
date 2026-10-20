@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nuvola di parole · Scavolini Academy</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="comune.css">
+<style>
+.w{max-width:520px; margin:0 auto; padding:18px max(18px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); min-height:100dvh; display:flex; flex-direction:column; gap:18px}
+.top{display:flex; align-items:center; gap:12px}
+.top .logo{width:52px; height:52px}
+.top .lab{font-size:15px; margin-left:auto; text-align:right}
+h1{font-size:clamp(36px,10vw,48px)}
+.eye{font-family:"Barlow Condensed",sans-serif; font-weight:600; letter-spacing:.14em; text-transform:uppercase; font-size:15px; color:var(--red); margin:0}
+form{display:flex; flex-direction:column; gap:12px}
+label{display:flex; flex-direction:column; gap:6px; font-weight:600; font-size:15px; color:var(--gr2)}
+input{font:600 22px "Barlow",sans-serif; color:var(--gr); background:var(--card); border:2px solid rgba(53,53,53,.55); border-radius:0; padding:12px 14px; min-height:58px; width:100%}
+input:focus{outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(197,22,29,.15)}
+.note{font-size:15px; color:var(--gr2); margin:0}
+.ok{border-left:6px solid var(--or); background:var(--card); padding:16px 18px; display:flex; flex-direction:column; gap:8px}
+.ok b{font-family:"Barlow Condensed",sans-serif; font-size:30px; font-weight:600; color:var(--red)}
+.ok ul{margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:8px}
+.ok li{background:var(--ocl); padding:6px 12px; font-weight:700; font-size:18px}
+.err{color:var(--red); font-weight:700; margin:0}
+.send{margin-top:6px; width:100%}
+</style></head>
+<body>
+<div class="w">
+  <div class="top"><img class="logo" src="logo.png" alt="Scavolini Academy"><span class="lab">In aula</span></div>
+  <p class="eye" id="eye">Nuvola di parole</p>
+  <h1 id="q">Un momento…</h1>
+  <form id="f" hidden autocomplete="off">
+    <div id="campi"></div>
+    <p class="note">Una parola per riga. Le parole sono anonime.</p>
+    <button class="btn send" id="go" type="submit">Invia</button>
+    <p class="err" id="err" role="alert"></p>
+  </form>
+  <div class="ok" id="ok" hidden><b>Grazie!</b><span>Le tue parole sono sulla nuvola. Guarda lo schermo.</span><ul id="mie"></ul></div>
+  <p class="err" id="stop" hidden></p>
+</div>
+<script>
+(function(){
+  var U = "https://zawffsfdzenrupjqnbsz.supabase.co/functions/v1/nuvola";
+  var c = (new URLSearchParams(location.search).get("c") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  var $ = function(id){ return document.getElementById(id); };
+  function api(o){ return fetch(U, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(o)}).then(function(r){ return r.json(); }); }
+  function ls(k, v){ try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+  var disp = ls("nuv_disp");
+  if (!disp) { disp = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/[^A-Za-z0-9]/g, "").slice(0, 32); ls("nuv_disp", disp); }
+  function fatto(parole){
+    $("f").hidden = true; $("ok").hidden = false;
+    $("mie").innerHTML = "";
+    (parole || []).forEach(function(p){ var li = document.createElement("li"); li.textContent = p; $("mie").appendChild(li); });
+  }
+  function stop(t){ $("q").textContent = t; $("stop").hidden = true; $("f").hidden = true; }
+  if (!c) { stop("Codice mancante: inquadra di nuovo il QR in aula."); return; }
+  var gia = ls("nuv_" + c);
+  api({azione:"info", codice:c}).then(function(r){
+    if (r.errore) { stop("Questa nuvola non esiste più."); return; }
+    $("q").textContent = r.domanda;
+    if (gia) { fatto(JSON.parse(gia)); return; }
+    if (!r.aperta) { $("stop").hidden = false; $("stop").textContent = "La raccolta è chiusa."; return; }
+    var box = $("campi");
+    for (var i = 0; i < r.max_parole; i++) {
+      var l = document.createElement("label");
+      l.innerHTML = "<span>Parola " + (i + 1) + "</span>";
+      var inp = document.createElement("input");
+      inp.maxLength = 40; inp.autocapitalize = "none"; inp.enterKeyHint = i < r.max_parole - 1 ? "next" : "send";
+      l.appendChild(inp); box.appendChild(l);
+    }
+    $("f").hidden = false;
+    box.querySelector("input").focus();
+  }).catch(function(){ stop("Connessione non riuscita. Riprova tra poco."); });
+  $("f").addEventListener("keydown", function(e){
+    if (e.key !== "Enter") return;
+    var ins = [].slice.call(document.querySelectorAll("#campi input")), k = ins.indexOf(e.target);
+    if (k > -1 && k < ins.length - 1) { e.preventDefault(); ins[k + 1].focus(); }
+  });
+  $("f").addEventListener("submit", function(e){
+    e.preventDefault();
+    var parole = [].slice.call(document.querySelectorAll("#campi input")).map(function(i){ return i.value.trim(); }).filter(Boolean);
+    if (!parole.length) { $("err").textContent = "Scrivi almeno una parola."; return; }
+    $("err").textContent = ""; $("go").disabled = true; $("go").textContent = "Invio…";
+    api({azione:"invia", codice:c, dispositivo:disp, parole:parole}).then(function(r){
+      if (r.errore === "chiusa") { $("err").textContent = "La raccolta è appena stata chiusa."; return; }
+      if (r.errore) { $("err").textContent = "Non sono riuscito a inviare. Riprova."; $("go").disabled = false; $("go").textContent = "Invia"; return; }
+      ls("nuv_" + c, JSON.stringify(parole)); fatto(parole);
+    }).catch(function(){ $("err").textContent = "Connessione non riuscita. Riprova."; $("go").disabled = false; $("go").textContent = "Invia"; });
+  });
+})();
+</script>
+</body></html>

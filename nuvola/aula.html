@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nuvola di parole · aula</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="comune.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+html,body{height:100%; overflow:hidden}
+.app{height:100dvh; display:grid; grid-template-columns:minmax(300px, 30vw) 1fr; gap:0}
+.app.noqr{grid-template-columns:minmax(260px, 24vw) 1fr}
+.left{padding:3.2vh 2.6vw; display:flex; flex-direction:column; gap:2.2vh; border-right:1px solid var(--line); min-height:0}
+.top{display:flex; align-items:center; gap:14px}
+.top .logo{width:clamp(48px,5.4vh,72px); height:auto}
+.top .lab{font-size:clamp(14px,2vh,20px)}
+.q{font-size:clamp(34px,6vh,72px)}
+.qr{background:#fff; padding:1.4vh; align-self:flex-start; width:min(100%, 34vh)}
+.qr svg{display:block; width:100%; height:auto}
+.join{font-size:clamp(15px,2.1vh,22px); font-weight:600; line-height:1.3; word-break:break-all}
+.join b{font-family:"Barlow Condensed",sans-serif; font-size:1.4em; letter-spacing:.12em; color:var(--red)}
+.cnt{margin-top:auto; font-family:"Barlow Condensed",sans-serif; font-weight:600; font-size:clamp(22px,3.4vh,40px)}
+.cnt span{color:var(--red)}
+.state{font-weight:700; font-size:clamp(14px,1.9vh,20px); color:var(--gr2)}
+.state.chiusa{color:var(--red)}
+.right{position:relative; min-width:0; min-height:0}
+#cloud{position:absolute; inset:2vh 2vw 9vh 2vw}
+.wd{position:absolute; white-space:nowrap; font-family:"Barlow Condensed",sans-serif; font-weight:600; line-height:1; cursor:pointer; transform-origin:center; transition:left .6s, top .6s, font-size .6s; padding:0 .08em; border:0; background:none; color:inherit}
+.wd:hover{text-decoration:underline; text-decoration-color:var(--or); text-decoration-thickness:3px}
+.wd.new{animation:pop .7s ease-out}
+@keyframes pop{from{opacity:0; transform:scale(.6)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion: reduce){ .wd{transition:none} .wd.new{animation:none} }
+.empty{position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--gr2); font-size:clamp(20px,3vh,32px); font-weight:600; padding:20px}
+.empty i{display:block; width:80px; height:4px; background:var(--or); margin:14px auto 0}
+.ctl{position:absolute; left:2vw; right:2vw; bottom:2vh; display:flex; gap:10px; flex-wrap:wrap; align-items:center; opacity:.35; transition:opacity .2s}
+.ctl:hover,.ctl:focus-within{opacity:1}
+.ctl .btn{min-height:44px; font-size:15px; padding:0 14px}
+.pop{position:absolute; z-index:9; background:var(--card); border:2px solid var(--gr); padding:12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.pop p{margin:0; font-weight:700}
+.pop div{display:flex; gap:8px}
+.pop .btn{min-height:40px; font-size:15px; padding:0 12px}
+/* configurazione */
+.setup{height:100dvh; display:grid; place-items:center; padding:24px}
+.setup form{width:min(640px,100%); display:flex; flex-direction:column; gap:16px; background:var(--card); border:2px solid var(--line); padding:28px}
+.setup h1{font-size:48px}
+.setup label{display:flex; flex-direction:column; gap:6px; font-weight:600; color:var(--gr2)}
+.setup input,.setup select{font:600 22px "Barlow",sans-serif; color:var(--gr); background:#fff; border:2px solid rgba(53,53,53,.5); padding:12px 14px; min-height:56px}
+.setup .row{display:flex; gap:12px; flex-wrap:wrap}
+.setup .err{color:var(--red); font-weight:700; margin:0}
+</style></head>
+<body>
+<div class="setup" id="setup" hidden>
+  <form id="sf">
+    <img class="logo" src="logo.png" alt="Scavolini Academy" width="64" height="64">
+    <h1>Nuova nuvola di parole</h1>
+    <label>Domanda<input id="sq" maxlength="200" value="Scrivi tre parole che ti descrivono" required></label>
+    <label>Parole per persona<select id="sm"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+    <div class="row"><button class="btn" type="submit">Crea la nuvola</button><button class="btn ghost" type="button" id="riprendi" hidden>Riprendi l'ultima</button></div>
+    <p class="err" id="serr" role="alert"></p>
+  </form>
+</div>
+<div class="app" id="app" hidden>
+  <aside class="left">
+    <div class="top"><img class="logo" src="logo.png" alt="Scavolini Academy"><span class="lab">Nuvola di parole</span></div>
+    <h1 class="q" id="q"></h1>
+    <div class="qr" id="qr"></div>
+    <p class="join" id="join"></p>
+    <p class="state" id="state"></p>
+    <p class="cnt"><span id="np">0</span> persone hanno risposto</p>
+  </aside>
+  <main class="right">
+    <div id="cloud" aria-live="polite"></div>
+    <div class="empty" id="empty">Le parole compariranno qui<i></i></div>
+    <div class="ctl" id="ctl" hidden>
+      <button class="btn" id="bstato" type="button">Chiudi la raccolta</button>
+      <button class="btn ghost" id="bqr" type="button">Nascondi QR</button>
+      <button class="btn ghost" id="bnasc" type="button" hidden></button>
+      <button class="btn ghost" id="bnuova" type="button">Nuova nuvola</button>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  var U = "https://zawffsfdzenrupjqnbsz.supabase.co/functions/v1/nuvola";
+  var $ = function(id){ return document.getElementById(id); };
+  function api(o){ return fetch(U, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(o)}).then(function(r){ return r.json(); }); }
+  function ls(k, v){ try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+  var codice = null, chiave = null, last = "", aperta = true, nascoste = [], timer = null, known = {};
+
+  function setup(){
+    $("app").hidden = true; $("setup").hidden = false;
+    var prev = ls("nuv_aula"); $("riprendi").hidden = !prev;
+  }
+  $("riprendi").addEventListener("click", function(){ var p = JSON.parse(ls("nuv_aula")); start(p.codice, p.chiave); });
+  $("sf").addEventListener("submit", function(e){
+    e.preventDefault(); $("serr").textContent = "";
+    api({azione:"crea", domanda:$("sq").value, max_parole:+$("sm").value}).then(function(r){
+      if (r.errore) { $("serr").textContent = "Non riesco a creare la nuvola (" + r.errore + ")."; return; }
+      ls("nuv_aula", JSON.stringify(r)); location.hash = r.codice; start(r.codice, r.chiave);
+    }).catch(function(){ $("serr").textContent = "Connessione non riuscita."; });
+  });
+
+  function joinUrl(){ return new URL("telefono.html?c=" + codice, location.href).href; }
+  function start(c, k){
+    codice = c; chiave = k || null; last = ""; known = {};
+    $("setup").hidden = true; $("app").hidden = false; $("ctl").hidden = !chiave;
+    if (location.hash.slice(1) !== c) location.hash = c;
+    var url = joinUrl();
+    try { var qr = qrcode(0, "M"); qr.addData(url); qr.make(); $("qr").innerHTML = qr.createSvgTag({cellSize:8, margin:0, scalable:true}); } catch (e) { $("qr").textContent = ""; }
+    var corto = url.replace(/^https?:\/\//, "").replace(/\?c=.*/, "");
+    $("join").innerHTML = "Inquadra il QR oppure apri<br>" + corto + "<br>codice <b>" + c + "</b>";
+    poll(); clearInterval(timer); timer = setInterval(poll, 2500);
+  }
+  function poll(){
+    api(chiave ? {azione:"leggi", codice:codice, chiave:chiave} : {azione:"leggi", codice:codice}).then(function(r){
+      if (r.errore) { if (r.errore === "nuvola non trovata") { clearInterval(timer); ls("nuv_aula", null); setup(); } return; }
+      $("q").textContent = r.domanda; $("np").textContent = r.persone;
+      aperta = r.aperta;
+      $("state").textContent = aperta ? "Raccolta aperta" : "Raccolta chiusa"; $("state").className = "state" + (aperta ? "" : " chiusa");
+      $("bstato").textContent = aperta ? "Chiudi la raccolta" : "Riapri la raccolta";
+      nascoste = r.nascoste || [];
+      $("bnasc").hidden = !nascoste.length; $("bnasc").textContent = "Ripristina nascoste (" + nascoste.length + ")";
+      var sig = JSON.stringify(r.parole);
+      if (sig !== last) { last = sig; draw(r.parole); }
+    }).catch(function(){});
+  }
+
+  /* disposizione a spirale */
+  function draw(parole){
+    var box = $("cloud"); $("empty").hidden = parole.length > 0;
+    var W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+    var old = {}; [].slice.call(box.children).forEach(function(el){ old[el.dataset.p] = el; });
+    var max = parole.length ? parole[0].n : 1;
+    var base = Math.min(H / 3.6, W / 6), TM = 6000, AR = Math.max(1, W / H) * 1.05, K = (H / 2) / Math.sqrt(TM) * 1.25;
+    for (var tent = 0; tent < 7; tent++) {
+      var placed = [], ok = true, rects = [];
+      for (var i = 0; i < parole.length; i++) {
+        var w = parole[i], fs = Math.max(18, base * (0.32 + 0.68 * Math.sqrt(w.n / max)));
+        var el = old[w.p] || document.createElement("button");
+        el.type = "button"; el.className = "wd"; el.dataset.p = w.p; el.textContent = w.p;
+        el.style.fontSize = fs + "px";
+        el.style.color = i < 3 ? "var(--red)" : (i % 2 ? "var(--gr2)" : "var(--gr)");
+        if (!el.parentNode) { el.style.visibility = "hidden"; box.appendChild(el); }
+        var ew = el.offsetWidth, eh = el.offsetHeight, pos = null;
+        for (var t = 0; t < TM; t += 1) {
+          var a = 0.3 * t, r = K * Math.sqrt(t);
+          var x = W / 2 + r * Math.cos(a) * AR - ew / 2, y = H / 2 + r * Math.sin(a) - eh / 2;
+          if (x < 0 || y < 0 || x + ew > W || y + eh > H) continue;
+          var hit = false;
+          for (var j = 0; j < rects.length; j++) { var q = rects[j]; if (x < q.x + q.w + 6 && x + ew + 6 > q.x && y < q.y + q.h + 2 && y + eh + 2 > q.y) { hit = true; break; } }
+          if (!hit) { pos = {x:x, y:y, w:ew, h:eh}; break; }
+        }
+        if (!pos) { ok = false; break; }
+        rects.push(pos); placed.push([el, pos, !old[w.p] && !known[w.p]]);
+      }
+      if (ok) break;
+      base *= 0.86;
+    }
+    var keep = {};
+    placed.forEach(function(it){ var el = it[0], p = it[1]; el.style.left = p.x + "px"; el.style.top = p.y + "px"; el.style.visibility = "visible"; if (it[2]) { el.classList.add("new"); } keep[el.dataset.p] = 1; known[el.dataset.p] = 1; });
+    [].slice.call(box.children).forEach(function(el){ if (!keep[el.dataset.p]) el.remove(); });
+  }
+  window.addEventListener("resize", function(){ last = ""; poll(); });
+
+  /* comandi del formatore */
+  var popEl = null;
+  function closePop(){ if (popEl) { popEl.remove(); popEl = null; } }
+  $("cloud").addEventListener("click", function(e){
+    var el = e.target.closest(".wd"); if (!el || !chiave) return;
+    closePop();
+    popEl = document.createElement("div"); popEl.className = "pop";
+    popEl.innerHTML = "<p></p><div><button class='btn' type='button'>Nascondi</button><button class='btn ghost' type='button'>Annulla</button></div>";
+    popEl.querySelector("p").textContent = "Nascondere «" + el.dataset.p + "»?";
+    popEl.style.left = Math.min(el.offsetLeft, $("cloud").clientWidth - 220) + "px"; popEl.style.top = (el.offsetTop + el.offsetHeight + 6) + "px";
+    $("cloud").appendChild(popEl);
+    var bs = popEl.querySelectorAll("button");
+    bs[0].addEventListener("click", function(){ api({azione:"nascondi", codice:codice, chiave:chiave, norma:el.dataset.p, nascosta:true}).then(poll); closePop(); });
+    bs[1].addEventListener("click", closePop);
+  });
+  $("bnasc").addEventListener("click", function(){
+    Promise.all(nascoste.map(function(n){ return api({azione:"nascondi", codice:codice, chiave:chiave, norma:n, nascosta:false}); })).then(poll);
+  });
+  $("bstato").addEventListener("click", function(){ api({azione:"stato", codice:codice, chiave:chiave, aperta:!aperta}).then(poll); });
+  $("bqr").addEventListener("click", function(){
+    var hid = $("qr").hidden = !$("qr").hidden; $("join").hidden = hid;
+    $("app").classList.toggle("noqr", hid); $("bqr").textContent = hid ? "Mostra QR" : "Nascondi QR"; last = ""; setTimeout(poll, 50);
+  });
+  $("bnuova").addEventListener("click", function(){ clearInterval(timer); history.replaceState(null, "", location.pathname); setup(); });
+
+  var h = location.hash.slice(1).toUpperCase(), saved = null;
+  try { saved = JSON.parse(ls("nuv_aula") || "null"); } catch (e) {}
+  if (h) start(h, saved && saved.codice === h ? saved.chiave : null);
+  else if (saved) start(saved.codice, saved.chiave);
+  else setup();
+})();
+</script>
+</body></html>

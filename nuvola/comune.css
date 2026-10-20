@@ -1,0 +1,14 @@
+:root{--paper:#F7F4EE; --gr:#353535; --gr2:#5a5650; --red:#C5161D; --or:#F47721; --oc:#D99A24; --ocl:#F3E3BF; --line:rgba(53,53,53,.22); --card:#fffdf8}
+*{box-sizing:border-box}
+html,body{margin:0; background:var(--paper); color:var(--gr); font-family:"Barlow",system-ui,sans-serif; font-weight:500}
+body::before{content:""; position:fixed; inset:0; pointer-events:none; opacity:.5; z-index:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='2'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .31  0 0 0 0 .26  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>")}
+body > *{position:relative; z-index:1}
+[hidden]{display:none !important}
+.logo{display:block}
+.lab{font-family:"Barlow Condensed",sans-serif; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--gr2)}
+h1,.hd{font-family:"Barlow Condensed","Arial Narrow",sans-serif; font-weight:600; line-height:.95; margin:0; text-wrap:balance}
+.btn{min-height:56px; padding:0 22px; border:0; font:700 18px "Barlow",sans-serif; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:10px; background:var(--red); color:#fff}
+.btn.ghost{background:transparent; color:var(--gr); box-shadow:inset 0 0 0 2px rgba(53,53,53,.4)}
+.btn:disabled{opacity:.5; cursor:default}
+:focus-visible{outline:3px solid var(--or); outline-offset:2px}
